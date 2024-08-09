@@ -13,7 +13,45 @@ export default function Home() {
   const [message, setMessage] = useState('') // For the user message
 
   const sendMessage = async () => {
-    // We'll implement this function in the next section
+    setMessage('') // To clear the input field
+    setMessages((messages) => [
+      ...messages,
+      {role: 'user', content: message}, //To add user's message to the chat
+      {role: 'assistant', content: ''}, // Adding a place holder for the assistant's chat
+    ])
+
+    //To send the message to the server =>
+      const response = fetch('/api/chat', {
+        method: 'POST', // The type of request made to the server
+        headers: {
+          'Content-Type' : 'application/json', // We are sending a JSON object as our message
+        },
+        body: JSON.stringify([...messages, { role: 'user', content: message}]), // The body will contain a string version of the content of the user message.
+      }).then(async(res) => {
+        const reader = res.body.getReader() //To read the response, we need a reader
+        const decoder = new TextDecoder() // Since we had encoded the messages being typed into the TextField
+
+        let result=''
+
+        //To process the text from the response
+
+        return reader.read().then(function processText({done,value}){
+          if(done){
+            return result
+          }
+        const text = decoder.decode(value || new Uint8Array(), { stream: true })  // Decode the text
+        console.log(text)
+        setMessages((messages) => {
+            let lastMessage = messages[messages.length - 1]  // Get the last message (assistant's placeholder)
+            let otherMessages = messages.slice(0, messages.length - 1)  // Get all other messages
+            return [
+              ...otherMessages,
+              { ...lastMessage, content: lastMessage.content + text },  // Append the decoded text to the assistant's message
+            ]
+        })
+          return reader.read().then(processText)  // Continue reading the next chunk of the response
+      })
+      })
   }
 
   return (

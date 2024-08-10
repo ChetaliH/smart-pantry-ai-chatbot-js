@@ -40,12 +40,15 @@ export default function Home() {
 
       const text = decoder.decode(value);
       result += text;
+      let delay = 100;
 
-      setMessages((prevMessages) => {
-        const lastMessage = prevMessages[prevMessages.length - 1];
-        const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
-        return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
-      });
+      setTimeout(() => {
+        setMessages((prevMessages) => {
+          const lastMessage = prevMessages[prevMessages.length - 1];
+          const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
+          return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
+        });
+      }, delay)
     }
   };
 

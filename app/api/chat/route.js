@@ -1,47 +1,54 @@
 import { NextResponse } from "next/server";
 import OpenAI from 'openai';
 
-const systemPrompt= "Hello, welcome to the Smart Pantry customer support assistant. How can I assist you today? I'm happy to help you find recipes based on the ingredients you have in your pantry, provide nutritional information, or answer any other questions you may have about the Smart Pantry platform. What would you like help with?"
+// Define your system prompt
+const systemPrompt = "Hello, welcome to the Smart Pantry customer support assistant. How can I assist you today? I'm happy to help you find recipes based on the ingredients you have in your pantry, provide nutritional information, or answer any other questions you may have about the Smart Pantry platform. What would you like help with?";
 
-export async function POST(req){ //We are using POST function in API because we want to send and receive values
-    const openai = new OpenAI() //An instance of OpenAI
-    const data = await req.json() //Awaiting response from .json file interacting with the API
+// Create an instance of OpenAI with OpenRouter API settings
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY, // Use environment variables for API key
+  defaultHeaders: {
+    "HTTP-Referer": process.env.YOUR_SITE_URL, // Optional, for including your app on openrouter.ai rankings
+    "X-Title": process.env.YOUR_SITE_NAME, // Optional. Shows in rankings on openrouter.ai
+  }
+});
 
-    const completion = await openai.chat.completions.create({
-        messages: [{
-            role: 'system',
-            content: systemPrompt,
-        },
-        ...data,
-    
-        ],
-        model: 'gpt-4o-mini',
-        stream: true, // We are going to start the stream of messages to receive responses from OpenAI
-    })
+export async function POST(req) {
+  // Await response from the request's JSON body
+  const data = await req.json();
 
-    const stream = new ReadableStream({ // Creating a stream variable and actually reading from the stream
-        async start(controller){
-            const encoder = new TextEncoder() // Encoder encodes your text ( maybe for protection/safety ).
-            try{
-                for await(const chunk of completion){ // OpenAI sends data in chunks
-                    const content= chunk.choices[0]?.delta?.content
-                    if(content){
-                        const text = encoder.encode(content)
-                        controller.enqueue(text) // Sending the data to the controller
-                    }
-                }
-            }
-            catch(err){
-                controller.error(err)
-            }
-            finally{
-                controller.close()
-            }
+  // Create a chat completion request with the specified model
+  const completion = await openai.chat.completions.create({
+    model: "meta-llama/llama-3.1-8b-instruct:free", // Use the model specified in the second snippet
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...data,
+    ],
+    stream: true, // Stream the response
+  });
+
+  // Create a readable stream for the response
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      try {
+        // Iterate over each chunk of data from the stream
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            const text = encoder.encode(content);
+            controller.enqueue(text); // Send the data to the controller
+          }
         }
-    })
+      } catch (err) {
+        controller.error(err);
+      } finally {
+        controller.close();
+      }
+    }
+  });
 
-    return new NextResponse(stream)
+  // Return the stream as the response
+  return new NextResponse(stream);
 }
-
-
-

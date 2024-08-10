@@ -1,58 +1,53 @@
-'use client'
-import Image from "next/image";
-import { Box, Button, Stack, TextField } from '@mui/material'
-import { useState } from 'react'
+'use client';
+import { useState } from 'react';
+import { Box, Button, Stack, TextField } from '@mui/material';
 
 export default function Home() {
-  const [messages, setMessages] = useState([ // Messages is an array 
+  const [messages, setMessages] = useState([
     {
       role: 'assistant',
       content: "Hi! I'm the Smart Pantry support assistant. How can I help you today?",
     },
-  ])
-  const [message, setMessage] = useState('') // For the user message
+  ]);
+  const [message, setMessage] = useState('');
 
   const sendMessage = async () => {
-    setMessage('') // To clear the input field
-    setMessages((messages) => [
-      ...messages,
-      {role: 'user', content: message}, //To add user's message to the chat
-      {role: 'assistant', content: ''}, // Adding a place holder for the assistant's chat
-    ])
+    if (!message.trim()) return; // Prevent sending empty messages
 
-    //To send the message to the server =>
-      const response = fetch('/api/chat', {
-        method: 'POST', // The type of request made to the server
-        headers: {
-          'Content-Type' : 'application/json', // We are sending a JSON object as our message
-        },
-        body: JSON.stringify([...messages, { role: 'user', content: message}]), // The body will contain a string version of the content of the user message.
-      }).then(async(res) => {
-        const reader = res.body.getReader() //To read the response, we need a reader
-        const decoder = new TextDecoder() // Since we had encoded the messages being typed into the TextField
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: 'user', content: message },
+      { role: 'assistant', content: '' },
+    ]);
+    setMessage('');
 
-        let result=''
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([...messages, { role: 'user', content: message }]),
+    });
 
-        //To process the text from the response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-        return reader.read().then(function processText({done,value}){
-          if(done){
-            return result
-          }
-        const text = decoder.decode(value || new Uint8Array(), { stream: true })  // Decode the text
-        console.log(text)
-        setMessages((messages) => {
-            let lastMessage = messages[messages.length - 1]  // Get the last message (assistant's placeholder)
-            let otherMessages = messages.slice(0, messages.length - 1)  // Get all other messages
-            return [
-              ...otherMessages,
-              { ...lastMessage, content: lastMessage.content + text },  // Append the decoded text to the assistant's message
-            ]
-        })
-          return reader.read().then(processText)  // Continue reading the next chunk of the response
-      })
-      })
-  }
+    let result = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value);
+      result += text;
+
+      setMessages((prevMessages) => {
+        const lastMessage = prevMessages[prevMessages.length - 1];
+        const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
+        return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
+      });
+    }
+  };
 
   return (
     <Box
@@ -75,7 +70,7 @@ export default function Home() {
           direction={'column'}
           spacing={2}
           flexGrow={1}
-          overflow="auto" // To be able to scroll
+          overflow="auto"
           maxHeight="100%"
         >
           {messages.map((message, index) => (
@@ -83,7 +78,7 @@ export default function Home() {
               key={index}
               display="flex"
               justifyContent={
-                message.role === 'assistant' ? 'flex-start' : 'flex-end' // If the message is from the assistant, display it from start. Else display it from end 
+                message.role === 'assistant' ? 'flex-start' : 'flex-end'
               }
             >
               <Box
@@ -94,19 +89,19 @@ export default function Home() {
                 }
                 color="white"
                 borderRadius={16}
-                p={3} // Content of the message the user types in the Text Field
+                p={3}
               >
-                {message.content} 
+                {message.content}
               </Box>
             </Box>
           ))}
         </Stack>
-        
-        <Stack direction={'row'} spacing={2}> 
-          <TextField // Above, spacing is 2 row-wise because we need to make space for 'send' button
+
+        <Stack direction={'row'} spacing={2}>
+          <TextField
             label="Message"
             fullWidth
-            value={message} //The entered message in TextField would parse into message variable
+            value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
           <Button variant="contained" onClick={sendMessage}>
@@ -115,5 +110,5 @@ export default function Home() {
         </Stack>
       </Stack>
     </Box>
-      
-)}
+  );
+}

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Box, Button, Stack, TextField } from '@mui/material';
-import { useAuthState } from 'react-firebase-hooks/auth'; // Ensure this is correctly imported
-import { useRouter } from 'next/navigation'; // Adjust import if necessary
-import { auth } from './firebase/config'; // Adjust path to your Firebase config
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { useRouter } from 'next/navigation';
+import { auth } from './firebase/config';
 
 export default function Home() {
   const [user] = useAuthState(auth);
@@ -18,12 +18,14 @@ export default function Home() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const userSession = sessionStorage.getItem('user');
-
-    if (!user && !userSession) {
+    if (!user) {
       router.push('/sign-up');
     }
   }, [user, router]);
+
+  const handleLogOut = async () => {
+    router.push('/sign-up');
+  };
 
   const sendMessage = async () => {
     if (!message.trim()) return; // Prevent sending empty messages
@@ -54,34 +56,23 @@ export default function Home() {
         const { done, value } = await reader.read();
         if (done) break;
 
-
-      const text = decoder.decode(value);
-      result += text;
-      let delay = 100;
-
-      setTimeout(() => {
-      const text = decoder.decode(value);
-        result += text;
-
+        result += decoder.decode(value, { stream: true });
 
         setMessages((prevMessages) => {
           const lastMessage = prevMessages[prevMessages.length - 1];
-          const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
-          return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
+          const updatedMessages = prevMessages.slice(0, -1);
+          return [...updatedMessages, { ...lastMessage, content: result }];
         });
-
-      }, delay)
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 
   const handleKeyPress = (event) => {
     if (event.key === 'Enter') {
+      event.preventDefault(); // Prevent form submission or other default actions
       sendMessage();
-
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-
     }
   };
 
@@ -95,7 +86,7 @@ export default function Home() {
       alignItems="center"
     >
       <Stack
-        direction={'column'}
+        direction="column"
         width="500px"
         height="400px"
         border="1px solid black"
@@ -103,7 +94,7 @@ export default function Home() {
         spacing={3}
       >
         <Stack
-          direction={'column'}
+          direction="column"
           spacing={2}
           flexGrow={1}
           overflow="auto"
@@ -133,7 +124,7 @@ export default function Home() {
           ))}
         </Stack>
 
-        <Stack direction={'row'} spacing={2}>
+        <Stack direction="row" spacing={2}>
           <TextField
             label="Message"
             fullWidth
@@ -145,7 +136,15 @@ export default function Home() {
             Send
           </Button>
         </Stack>
+      
+      </Stack>
+      <br></br>
+      <Stack>
+        <Button variant="contained" onClick={handleLogOut}>
+          Logout
+        </Button>
       </Stack>
     </Box>
+    
   );
 }

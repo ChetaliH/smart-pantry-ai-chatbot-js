@@ -60,7 +60,7 @@ const SignIn = () => {
       </div>
       <br />
       <div>
-      <a href="/sign-in">Don't have an account? Sign in here</a>
+      <a href="/sign-in">Don&apos;t have an account? Sign in here</a>
       </div>
     </div>
   );

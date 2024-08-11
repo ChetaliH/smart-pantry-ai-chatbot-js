@@ -1,8 +1,14 @@
 'use client';
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Box, Button, Stack, TextField } from '@mui/material';
+import { useAuthState } from 'react-firebase-hooks/auth'; // Ensure this is correctly imported
+import { useRouter } from 'next/navigation'; // Adjust import if necessary
+import { auth } from './firebase/config'; // Adjust path to your Firebase config
 
 export default function Home() {
+  const [user] = useAuthState(auth);
+  const router = useRouter();
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -10,6 +16,14 @@ export default function Home() {
     },
   ]);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const userSession = sessionStorage.getItem('user');
+
+    if (!user && !userSession) {
+      router.push('/sign-up');
+    }
+  }, [user, router]);
 
   const sendMessage = async () => {
     if (!message.trim()) return; // Prevent sending empty messages
@@ -21,31 +35,36 @@ export default function Home() {
     ]);
     setMessage('');
 
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify([...messages, { role: 'user', content: message }]),
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    let result = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const text = decoder.decode(value);
-      result += text;
-
-      setMessages((prevMessages) => {
-        const lastMessage = prevMessages[prevMessages.length - 1];
-        const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
-        return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([...messages, { role: 'user', content: message }]),
       });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let result = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value);
+        result += text;
+
+        setMessages((prevMessages) => {
+          const lastMessage = prevMessages[prevMessages.length - 1];
+          const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
+          return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 

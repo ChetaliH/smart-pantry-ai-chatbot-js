@@ -54,17 +54,34 @@ export default function Home() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const text = decoder.decode(value);
+
+      const text = decoder.decode(value);
+      result += text;
+      let delay = 100;
+
+      setTimeout(() => {
+      const text = decoder.decode(value);
         result += text;
+
 
         setMessages((prevMessages) => {
           const lastMessage = prevMessages[prevMessages.length - 1];
           const updatedMessages = prevMessages.slice(0, prevMessages.length - 1);
           return [...updatedMessages, { ...lastMessage, content: lastMessage.content + text }];
         });
+
+      }, delay)
+    }
+  };
+
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      sendMessage();
+
       }
     } catch (error) {
       console.error('Error sending message:', error);
+
     }
   };
 
@@ -122,6 +139,7 @@ export default function Home() {
             fullWidth
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
           />
           <Button variant="contained" onClick={sendMessage}>
             Send
